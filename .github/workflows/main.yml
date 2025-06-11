@@ -1,44 +1,44 @@
-name: Facebook to Telegram
+name: Facebook scraper to Telegram
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
-  workflow_dispatch:
+    - cron: '*/15 * * * *'  # كل 15 دقيقة
+  workflow_dispatch:       # لتشغيل يدوي من الواجهة
 
 jobs:
   run-script:
-    runs-on: ubuntu-latest  # Ubuntu 24.04 حاليًا
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    - name: 🧾 Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'  # ✅ إصدار مدعوم على Ubuntu 24.04
+    - name: 🔽 Download seen posts (إن وجد)
+      uses: actions/download-artifact@v4
+      with:
+        name: seen-posts
+        path: .
 
-      - name: Install dependencies
-        run: |
-          pip install facebook-scraper requests lxml[html_clean]
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-      - name: Download seen-posts (optional)
-        uses: actions/download-artifact@v4
-        with:
-          name: seen-posts
-          path: .
-        continue-on-error: true
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install facebook-scraper requests
 
-      - name: Run Facebook scraper script
-        env:
-          FB_PAGE: ${{ secrets.FB_PAGE }}
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-          FB_COOKIES: ${{ secrets.FB_COOKIES }}
-        run: python script.py
+    - name: 🚀 Run scraper script
+      env:
+        FB_PAGE: '61576929655481'
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        CHAT_ID: ${{ secrets.CHAT_ID }}
+        FB_COOKIES: ${{ secrets.FB_COOKIES }}
+      run: python script.py
 
-      - name: Upload updated seen-posts
-        uses: actions/upload-artifact@v4
-        with:
-          name: seen-posts
-          path: seen-posts.json
+    - name: 💾 Upload seen posts
+      uses: actions/upload-artifact@v4
+      with:
+        name: seen-posts
+        path: seen-posts.json
