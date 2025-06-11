@@ -2,7 +2,7 @@ name: Facebook scraper to Telegram
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/15 * * * *'  # كل 15 دقيقة
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
       with:
         name: seen-posts
         path: .
-      continue-on-error: true
+      continue-on-error: true  # ✅ لا تفشل إذا لم يوجد الملف
 
     - name: 🐍 Set up Python
       uses: actions/setup-python@v5
@@ -30,26 +30,24 @@ jobs:
         python -m pip install --upgrade pip
         pip install facebook-scraper requests
 
-    - name: 🚀 Run scraper script and save log
+    - name: 🚀 Run scraper script
       env:
         FB_PAGE: '61576929655481'
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         CHAT_ID: ${{ secrets.CHAT_ID }}
         FB_COOKIES: ${{ secrets.FB_COOKIES }}
-      run: |
-        python script.py > log.txt 2>&1 || true
-
-    - name: 📨 Send log to Telegram
-      env:
-        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        CHAT_ID: ${{ secrets.CHAT_ID }}
-      run: |
-        curl -F chat_id="$CHAT_ID" \
-             -F document=@log.txt \
-             https://api.telegram.org/bot$BOT_TOKEN/sendDocument
+      run: python script.py
 
     - name: 💾 Upload seen posts
       uses: actions/upload-artifact@v4
       with:
         name: seen-posts
         path: seen-posts.json
+      continue-on-error: true
+
+    - name: 🧷 Upload log file
+      uses: actions/upload-artifact@v4
+      with:
+        name: log
+        path: log.txt
+      continue-on-error: true
