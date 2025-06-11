@@ -2,12 +2,12 @@ name: Facebook to Telegram
 
 on:
   schedule:
-    - cron: "*/15 * * * *"  # كل 15 دقيقة
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 jobs:
   run-script:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Ubuntu 24.04 حاليًا
 
     steps:
       - name: Checkout repo
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.10
+          python-version: '3.11'  # ✅ إصدار مدعوم على Ubuntu 24.04
 
       - name: Install dependencies
         run: |
@@ -27,7 +27,7 @@ jobs:
         with:
           name: seen-posts
           path: .
-        continue-on-error: true  # تجاهل الخطأ إذا لم يوجد
+        continue-on-error: true
 
       - name: Run Facebook scraper script
         env:
