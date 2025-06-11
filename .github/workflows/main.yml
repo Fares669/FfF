@@ -2,7 +2,7 @@ name: Facebook Scraper to Telegram
 
 on:
   schedule:
-    - cron: "*/15 * * * *"  # كل 15 دقيقة
+    - cron: "*/15 * * * *"  # تشغيل كل 15 دقيقة
   workflow_dispatch:        # زر تشغيل يدوي
 
 jobs:
@@ -22,11 +22,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Download last seen post (optional)
-  continue-on-error: true
-  uses: actions/download-artifact@v4
-  with:
-    name: seen-posts
-    path: .
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: seen-posts
+          path: .
 
       - name: Run scraper
         env:
@@ -37,6 +37,7 @@ jobs:
         run: python script.py
 
       - name: Upload updated seen posts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: seen-posts
