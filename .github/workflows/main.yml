@@ -1,0 +1,42 @@
+name: Facebook Scraper to Telegram
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"  # كل 15 دقيقة
+  workflow_dispatch:        # زر تشغيل يدوي
+
+jobs:
+  scrape-and-send:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download last seen post
+        uses: actions/download-artifact@v4
+        with:
+          name: seen-posts
+          path: .
+
+      - name: Run scraper
+        env:
+          FB_PAGE: ${{ secrets.FB_PAGE }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          FB_COOKIES: ${{ secrets.FB_COOKIES }}
+        run: python script.py
+
+      - name: Upload updated seen posts
+        uses: actions/upload-artifact@v4
+        with:
+          name: seen-posts
+          path: seen_posts.json
