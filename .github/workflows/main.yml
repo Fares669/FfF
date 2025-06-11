@@ -21,11 +21,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Download last seen post
-        uses: actions/download-artifact@v4
-        with:
-          name: seen-posts
-          path: .
+      - name: Download last seen post (optional)
+  continue-on-error: true
+  uses: actions/download-artifact@v4
+  with:
+    name: seen-posts
+    path: .
 
       - name: Run scraper
         env:
