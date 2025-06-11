@@ -2,73 +2,62 @@ import os
 import json
 from facebook_scraper import get_posts
 import requests
+from datetime import datetime
 
+# إعدادات من متغيرات GitHub Actions
 FB_PAGE = os.environ["FB_PAGE"]
-TG_TOKEN = os.environ["TG_TOKEN"]
-TG_CHAT_ID = os.environ["TG_CHAT_ID"]
-FB_COOKIES = os.environ["FB_COOKIES"]
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+CHAT_ID = os.environ["CHAT_ID"]
+COOKIE_STRING = os.environ["FB_COOKIES"]
 
-def send_telegram_message(text):
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    payload = {"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}
+# ملف التخزين المحلي للمنشورات المرسلة
+seen_file = "seen-posts.json"
+
+# محاولة تحميل المنشورات المرسلة مسبقًا (أو البدء بقائمة فارغة)
+try:
+    with open(seen_file, "r") as f:
+        seen = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    seen = []
+
+# تحويل الكوكيز من شكل "key1=val1; key2=val2" إلى dict
+cookie_dict = dict(item.strip().split("=") for item in COOKIE_STRING.split(";"))
+
+def send_to_telegram(text, image_url=None):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": False
+    }
     response = requests.post(url, data=payload)
-    return response.ok
+    response.raise_for_status()
 
 def main():
-    cookie_dict = {}
-    for part in FB_COOKIES.split(";"):
-        if "=" in part:
-            k, v = part.strip().split("=", 1)
-            cookie_dict[k] = v
-
-    seen_post_file = "seen-posts.json"
-    if os.path.exists(seen_post_file):
-        with open(seen_post_file, "r") as f:
-            seen_posts = json.load(f)
-    else:
-        seen_posts = []
-
-    posts_found = False
-
     for post in get_posts(FB_PAGE, pages=1, cookies=cookie_dict):
-        text = post.get("text", "").strip()
-        post_id = post.get("post_id")
-        timestamp = post.get("time")
-        print(f"Found post ID {post_id} with text snippet: {text[:80]} at {timestamp}")
+        post_id = post["post_id"]
+        if post_id in seen:
+            print("🔁 تم إرسال هذا المنشور مسبقًا، يتم تخطيه.")
+            return
 
-        if post_id in seen_posts:
-            print(f"Post {post_id} already seen, skipping.")
-            continue
+        # تنسيق التاريخ والوصف والرابط
+        timestamp = post["time"].strftime("%Y-%m-%d %H:%M") if post["time"] else "بدون تاريخ"
+        text = post.get("text", "بدون وصف")
+        url = post.get("post_url", "")
+        media = post.get("image") or post.get("video") or ""
 
-        posts_found = True
+        message = f"<b>🕓 {timestamp}</b>\n\n{text.strip()}\n\n🔗 {url}"
 
-        # Compose message
-        message = f"<b>تاريخ النشر:</b> {timestamp}\n\n"
-        message += f"<b>الوصف:</b>\n{text}\n\n"
+        # إرسال إلى تيليجرام
+        send_to_telegram(message)
 
-        link = post.get("post_url")
-        if link:
-            message += f"<b>رابط المنشور:</b> {link}\n\n"
-
-        # Send photo or video if exists
-        media_urls = post.get("images") or post.get("videos") or []
-        if media_urls:
-            message += f"<b>الوسائط المرفقة:</b>\n"
-            for url in media_urls:
-                message += f"{url}\n"
-
-        # Send message to Telegram
-        sent = send_telegram_message(message)
-        if sent:
-            print(f"Sent post {post_id} to Telegram.")
-            seen_posts.append(post_id)
-            with open(seen_post_file, "w") as f:
-                json.dump(seen_posts, f)
-        else:
-            print(f"Failed to send post {post_id}.")
-
-    if not posts_found:
-        print("No new posts found.")
+        # حفظ المعرف لتفادي التكرار
+        seen.append(post_id)
+        with open(seen_file, "w") as f:
+            json.dump(seen, f)
+        print("✅ تم إرسال منشور جديد.")
+        return  # نخرج بعد أول منشور جديد
 
 if __name__ == "__main__":
     main()
