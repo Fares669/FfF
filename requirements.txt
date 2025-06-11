@@ -1,0 +1,2 @@
+facebook-scraper
+python-telegram-bot==13.15
