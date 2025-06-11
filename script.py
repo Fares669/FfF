@@ -1,64 +1,74 @@
-import json
 import os
+import json
 from facebook_scraper import get_posts
-from telegram import Bot
+import requests
 
-FB_PAGE = os.getenv("FB_PAGE")
-TG_TOKEN = os.getenv("TG_TOKEN")
-CHAT_ID = os.getenv("TG_CHAT_ID")
-COOKIE_STRING = os.getenv("FB_COOKIES")
+FB_PAGE = os.environ["FB_PAGE"]
+TG_TOKEN = os.environ["TG_TOKEN"]
+TG_CHAT_ID = os.environ["TG_CHAT_ID"]
+FB_COOKIES = os.environ["FB_COOKIES"]
 
-SEEN_FILE = "seen_posts.json"
-bot = Bot(token=TG_TOKEN)
-
-# تحويل سطر الكوكيز إلى dict
-def parse_cookie_string(cookie_string):
-    cookies = {}
-    for pair in cookie_string.split(";"):
-        if "=" in pair:
-            name, value = pair.strip().split("=", 1)
-            cookies[name] = value
-    return cookies
-
-def load_seen():
-    if os.path.exists(SEEN_FILE):
-        with open(SEEN_FILE, "r") as f:
-            return set(json.load(f))
-    return set()
-
-def save_seen(seen):
-    with open(SEEN_FILE, "w") as f:
-        json.dump(list(seen), f)
-
-def send_post(post):
-    date = post.get("time").strftime("%Y-%m-%d %H:%M") if post.get("time") else "غير معروف"
-    text = post.get("post_text") or post.get("text", "")
-    link = post.get("post_url")
-    media = post.get("image") or post.get("video")
-    message = f"📅 {date}\n\n{text}\n\n🔗 {link}"
-
-    try:
-        if media:
-            bot.send_photo(chat_id=CHAT_ID, photo=media, caption=message[:1024])
-        else:
-            bot.send_message(chat_id=CHAT_ID, text=message)
-    except Exception as e:
-        print(f"Telegram Error: {e}")
-        if media:
-            bot.send_message(chat_id=CHAT_ID, text=message + f"\n📎 {media}")
-        else:
-            bot.send_message(chat_id=CHAT_ID, text=message)
+def send_telegram_message(text):
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    payload = {"chat_id": TG_CHAT_ID, "text": text, "parse_mode": "HTML"}
+    response = requests.post(url, data=payload)
+    return response.ok
 
 def main():
-    seen = load_seen()
-    cookie_dict = parse_cookie_string(COOKIE_STRING)
+    cookie_dict = {}
+    for part in FB_COOKIES.split(";"):
+        if "=" in part:
+            k, v = part.strip().split("=", 1)
+            cookie_dict[k] = v
+
+    seen_post_file = "seen-posts.json"
+    if os.path.exists(seen_post_file):
+        with open(seen_post_file, "r") as f:
+            seen_posts = json.load(f)
+    else:
+        seen_posts = []
+
+    posts_found = False
+
     for post in get_posts(FB_PAGE, pages=1, cookies=cookie_dict):
-        pid = post.get("post_id")
-        if pid and pid not in seen:
-            send_post(post)
-            seen.add(pid)
-            break
-    save_seen(seen)
+        text = post.get("text", "").strip()
+        post_id = post.get("post_id")
+        timestamp = post.get("time")
+        print(f"Found post ID {post_id} with text snippet: {text[:80]} at {timestamp}")
+
+        if post_id in seen_posts:
+            print(f"Post {post_id} already seen, skipping.")
+            continue
+
+        posts_found = True
+
+        # Compose message
+        message = f"<b>تاريخ النشر:</b> {timestamp}\n\n"
+        message += f"<b>الوصف:</b>\n{text}\n\n"
+
+        link = post.get("post_url")
+        if link:
+            message += f"<b>رابط المنشور:</b> {link}\n\n"
+
+        # Send photo or video if exists
+        media_urls = post.get("images") or post.get("videos") or []
+        if media_urls:
+            message += f"<b>الوسائط المرفقة:</b>\n"
+            for url in media_urls:
+                message += f"{url}\n"
+
+        # Send message to Telegram
+        sent = send_telegram_message(message)
+        if sent:
+            print(f"Sent post {post_id} to Telegram.")
+            seen_posts.append(post_id)
+            with open(seen_post_file, "w") as f:
+                json.dump(seen_posts, f)
+        else:
+            print(f"Failed to send post {post_id}.")
+
+    if not posts_found:
+        print("No new posts found.")
 
 if __name__ == "__main__":
     main()
