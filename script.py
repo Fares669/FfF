@@ -20,8 +20,14 @@ try:
 except (FileNotFoundError, json.JSONDecodeError):
     seen = []
 
-# تحويل الكوكيز من شكل "key1=val1; key2=val2" إلى dict
-cookie_dict = dict(item.strip().split("=") for item in COOKIE_STRING.split(";"))
+# تحويل الكوكيز من شكل "key1=val1; key2=val2" إلى dict بأمان
+cookie_dict = {}
+for item in COOKIE_STRING.split(";"):
+    item = item.strip()
+    if not item or "=" not in item:
+        continue
+    key, val = item.split("=", 1)
+    cookie_dict[key] = val
 
 def send_to_telegram(text, image_url=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
