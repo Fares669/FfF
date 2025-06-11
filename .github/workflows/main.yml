@@ -2,8 +2,8 @@ name: Facebook Scraper to Telegram
 
 on:
   schedule:
-    - cron: "*/15 * * * *"  # تشغيل كل 15 دقيقة
-  workflow_dispatch:        # زر تشغيل يدوي
+    - cron: "*/15 * * * *"  # كل 15 دقيقة
+  workflow_dispatch:
 
 jobs:
   scrape-and-send:
